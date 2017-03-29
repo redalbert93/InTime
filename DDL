@@ -1,0 +1,411 @@
+SET FOREIGN_KEY_CHECKS=0;
+
+DROP TABLE IF EXISTS Persona;
+DROP TABLE IF EXISTS Articolo;
+DROP TABLE IF EXISTS Cinturini;
+DROP TABLE IF EXISTS Negozio;
+DROP TABLE IF EXISTS Orologi;
+DROP TABLE IF EXISTS Vende;
+DROP TABLE IF EXISTS Marche;
+
+CREATE TABLE Persona (
+	 Nickname VARCHAR(20) NOT NULL,
+	 Password VARCHAR(50) NOT NULL,
+	 Nome VARCHAR(20) NOT NULL,
+	 Cognome VARCHAR(20) NOT NULL,
+	 Citta VARCHAR(20),
+	 Telefono VARCHAR(15),
+	 Email VARCHAR(30) NOT NULL,
+	 Data_Iscrizione TIMESTAMP default NOW(),
+	 PRIMARY KEY(Nickname)
+)ENGINE=InnoDB;
+
+CREATE TABLE Articolo (
+	Id INT(4) NOT NULL AUTO_INCREMENT,
+	Referenza_O VARCHAR(20),
+	Codice_C CHAR(3),
+	Titolo VARCHAR(50) NOT NULL,
+	Data TIMESTAMP default NOW(),
+	Descrizione VARCHAR(250) NOT NULL,
+	Prezzo INT,
+	Condizione ENUM('0','1','2','3','4','5','6','7','8','9','10'),
+	Quantita INT ,
+	Nickname_scrittore VARCHAR(20),
+	NomeNegozio VARCHAR(20),
+	PRIMARY KEY(Id),
+	FOREIGN KEY (NomeNegozio) REFERENCES Negozio(Nome) ON UPDATE cascade ON DELETE set null,
+	FOREIGN KEY (Codice_C) REFERENCES Cinturini(Codice) ON UPDATE cascade ON DELETE set null,
+	FOREIGN KEY (Nickname_scrittore) REFERENCES Persona(Nickname) ON UPDATE cascade ON DELETE set null,
+	FOREIGN KEY (Referenza_O) REFERENCES Orologi(Referenza) ON UPDATE cascade ON DELETE set null
+) ENGINE=InnoDB;
+
+
+CREATE TABLE Cinturini (
+	 Codice CHAR(3) NOT NULL,
+	 Colore VARCHAR(20) NOT NULL,
+	 Materiale VARCHAR(20) NOT NULL,
+	 PRIMARY KEY(Codice)
+)ENGINE=InnoDB;
+
+CREATE TABLE Negozio (
+	 Nome VARCHAR(20) NOT NULL,
+	 Nickname VARCHAR(20) UNIQUE NOT NULL,  
+	 Password VARCHAR(50) NOT NULL,
+	 Indirizzo VARCHAR(30) NOT NULL,
+	 Telefono VARCHAR(15) NOT NULL,
+	 Email VARCHAR(30) NOT NULL,
+	 PRIMARY KEY(Nome)
+	 
+)ENGINE=InnoDB;
+
+CREATE TABLE Orologi (
+	 Referenza VARCHAR(20) NOT NULL,
+	 Prezzo_nuovo INT NOT NULL,
+	 Marca VARCHAR(30) NOT NULL,
+	 Modello VARCHAR(30) NOT NULL,
+	 Calibro VARCHAR(10) NOT NULL,
+	 Carica ENUM('automatico','manuale','quarzo'),
+	 Materiale VARCHAR(20),
+	 Anno YEAR,
+	 Sesso ENUM('M','D','X'),
+	 Diametro INT,
+	 Catena ENUM('presente','non presente'),
+	 Tipo ENUM('tasca','polso'),
+	 PRIMARY KEY(Referenza)
+)ENGINE=InnoDB;
+
+CREATE TABLE Vende (
+	 Nomenegozio VARCHAR(20),
+	 NomeMarche VARCHAR(20),
+	 PRIMARY KEY(Nomenegozio,NomeMarche),
+	 FOREIGN KEY (Nomenegozio) REFERENCES Negozio(Nome) ON UPDATE cascade ON DELETE cascade,
+	 FOREIGN KEY (NomeMarche) REFERENCES Marche(Nome) ON UPDATE cascade ON DELETE cascade
+)ENGINE=InnoDB;
+
+CREATE TABLE Marche (
+	 Nome VARCHAR(20),
+	 PRIMARY KEY(Nome)
+)ENGINE=InnoDB;
+
+
+
+/*CREAZIONE TRIGGER*/
+
+DROP TRIGGER IF EXISTS ControlloArticoloINS;
+DROP TRIGGER IF EXISTS ControlloArticoloUPD;
+DROP TRIGGER IF EXISTS ControlloOrologioINS;
+DROP TRIGGER IF EXISTS ControlloOrologioUPD;
+DROP TRIGGER IF EXISTS ControllopswUPD;
+DROP TRIGGER IF EXISTS ControlloiscrizioneINS;
+DROP TRIGGER IF EXISTS ControllonegoziUPD;
+DROP TRIGGER IF EXISTS ControllonegoziINS;
+
+
+DELIMITER $$
+
+CREATE TRIGGER ControlloArticoloINS
+BEFORE INSERT ON Articolo
+FOR EACH ROW
+BEGIN
+	IF(New.Quantita = '' OR New.Quantita<=0) THEN 
+		SET New.Quantita=0;
+	END IF;
+	IF(New.Codice_C = '' AND New.Referenza_O = '') THEN
+		CALL `errore articolo`;
+	END IF;
+	IF(New.Titolo = '' OR New.Descrizione = '') THEN
+		CALL `errore articolo`;
+	END IF;
+	IF(New.Codice_C IS NOT NULL AND New.Referenza_O = (SELECT Orologi.Referenza FROM Orologi WHERE Orologi.Referenza=New.Referenza_O AND Orologi.Tipo="tasca")) THEN 
+		CALL `errore articolo`;
+	END IF;
+	IF(New.Referenza_O IS NOT NULL) THEN
+		IF(New.Prezzo  > (SELECT Orologi.Prezzo_nuovo FROM Orologi WHERE Orologi.Referenza=New.Referenza_O)) THEN
+				CALL `errore prezzi`;
+		END IF;
+	END IF;
+END $$
+
+CREATE TRIGGER ControlloArticoloUPD
+BEFORE UPDATE ON Articolo
+FOR EACH ROW
+BEGIN
+	IF(New.Quantita <= 0) THEN 
+		SET New.Quantita=0;
+	END IF;
+	IF(New.Codice_C = '' AND New.Referenza_O = '') THEN
+		CALL `errore articolo`;
+	END IF;
+	IF(New.Titolo='' OR New.Descrizione='') THEN
+		CALL `errore articolo`;
+	END IF;	
+	IF(New.Codice_C IS NOT NULL AND New.Referenza_O = (SELECT Orologi.Referenza FROM Orologi WHERE Orologi.Referenza=New.Referenza_O AND Orologi.Tipo="tasca")) THEN 
+		CALL `errore articolo`;
+	END IF;
+	IF(New.Referenza_O IS NOT NULL) THEN
+		IF(New.Prezzo  > (SELECT Orologi.Prezzo_nuovo FROM Orologi WHERE Orologi.Referenza=New.Referenza_O)) THEN
+				CALL `errore prezzi`;
+		END IF;
+	END IF;
+END $$
+
+CREATE TRIGGER ControlloOrologioINS
+BEFORE INSERT ON Orologi                   
+FOR EACH ROW 
+BEGIN
+	IF(New.Diametro > 48) THEN
+    	CALL `errore diametro`;
+    END IF;
+    IF(New.Tipo = "tasca" AND (New.Carica = "automatico" OR New.Carica = "quarzo")) THEN
+		CALL `controllare tipo e carica`;
+	END IF;
+	IF(New.Tipo = "polso") THEN
+		SET New.Catena = "non presente";
+	END IF;
+END $$
+
+CREATE TRIGGER ControlloOrologioUPD
+BEFORE UPDATE ON Orologi 
+FOR EACH ROW 
+BEGIN
+	IF(New.Diametro > 48) THEN
+    	CALL `errore diametro`;
+    END IF;
+   	IF(New.Tipo = "tasca" AND (New.Carica = "automatico" OR New.Carica = "quarzo")) THEN
+		CALL `controllare tipo e carica`;
+	END IF;
+	IF(New.Tipo = "polso") THEN
+		SET New.Catena = "non presente";
+	END IF;
+END $$
+
+CREATE TRIGGER ControllopswUPD 
+BEFORE UPDATE ON Persona
+FOR EACH ROW 
+BEGIN
+  IF (NEW.Password = OLD.Password) THEN 
+        CALL `psw vecchia uguale alla nuova`;
+  END IF;
+END $$
+
+CREATE TRIGGER ControlloiscrizioneINS 
+BEFORE INSERT ON Persona
+FOR EACH ROW 
+BEGIN
+  IF (NEW.Nickname = '' OR NEW.Password = MD5('') OR New.Nome = '' OR New.Cognome = '' OR New.Email = '') THEN
+        CALL `compilare i campi`;
+		END IF;
+END $$
+
+CREATE TRIGGER ControllonegoziUPD 
+BEFORE UPDATE ON Negozio
+FOR EACH ROW 
+BEGIN
+  IF (NEW.Password = OLD.Password) THEN 
+        CALL `psw vecchia uguale alla nuova`;
+  END IF;
+END $$
+
+CREATE TRIGGER ControllonegoziINS 
+BEFORE INSERT ON Negozio
+FOR EACH ROW 
+BEGIN
+  IF (NEW.Nickname = '' OR NEW.Password = MD5('') OR New.Nome = '' OR New.Indirizzo = '' OR New.Telefono = '' OR New.Email = '') THEN
+        CALL `compilare i campi`;
+		END IF;
+END $$
+
+DELIMITER ;
+
+/*POPOLAMENTO DB*/
+
+INSERT INTO `Orologi` (`Referenza`,`Prezzo_nuovo`,`Marca`,`Modello`,`Calibro`,`Carica`,`Materiale`,`Anno`,`Sesso`,`Diametro`,`Catena`,`Tipo`) VALUES
+('32387','850€','Omega','Seamaster','562','automatico','acciaio','1962','M','34mm','non presente','polso'),
+('653242','11000€','Zenith','ElPrimero','L398','automatico','acciaio-oro','1985','M','42mm','non presente','polso'),
+('35423','700€','Zenith','Stellina','2511','manuale','oro rosa','1962','M','36mm','non presente','polso'),
+('2523','9000€','Rolex','Datejust','sc322','automatico','acciaio-oro','1973','M','36mm','non presente','polso'),
+('34523','7000€','Omega','Speedmaster','2578','automatico','acciaio','1982','M','44mm','non presente','polso'),
+('6532','400€','Moeris','13',NULL,'manuale','acciaio','1956','M','34mm','non presente','polso'),
+('21397','1200€','Longines','Hydroconquest','L3765','automatico','acciaio','2014','M','44mm','non presente','polso'),
+('653','300€','Lanco',NULL,'r32','automatico','acciaio','1952','M','34mm','non presente','polso'),
+('345236','300€','Junghans',NULL,'j63','manuale','acciaio-ottone','1931','M','36mm','non presente','polso'),
+('31243','8000€','Rolex','submariner','r342','automatico','acciaio','2013','M','42mm','non presente','polso'),
+('23423','9000€','Rolex','Millgauss','R543','automatico','acciaio','2015','M','42mm','non presente','polso'),
+('54645','8000€','Rolex','Submariner','R892','automatico','acciaio','2015','M','42mm','non presente','polso'),
+('234','7900€','Rolex','Datejust','R533','automatico','oro','2015','M','36mm','non presente','polso'),
+('34563','8000€','Rolex','Daydate','R532','automatico','acciaio-oro','2015','D','34mm','non presente','polso'),
+('23897','12000€','Rolex','Daytona','R678','automatico','acciaio-oro','2015','M','44mm','non presente','polso'),
+('23847','12000€','Zenith','ElPrimero','L398','automatico','oro','2015','M','44mm','non presente','polso'),
+('2231847','8000€','Zenith','Elite','L338','automatico','acciaio','2015','M','42mm','non presente','polso'),
+('438147','8000€','Omega','300M','p700','automatico','acciaio','2015','M','42mm','non presente','polso'),
+('239821','9000€','Omega','Speedmaster','p701','automatico','acciaio','2015','M','44mm','non presente','polso'),
+('549811','10000€','Omega','planetocean','p708','automatico','acciaio','2015','M','44mm','non presente','polso'),
+('23442','12000€','Rolex','Datejust','DR654','automatico','acciaio-oro','1973','X','34mm','non presente','polso'),
+('123','55000€','Rolex','PaulNewman','R543','automatico','acciaio-oro','1985','M','42mm','non presente','polso'),
+('7284','15000€','Audemars','royal oak','Ap732','automatico','acciaio','2013','M','36mm','non presente','polso'),
+('89475','22000€','Patek','nautilus','P21','automatico','acciaio','2015','M','36mm','non presente','polso'),
+('398576','23000€','Patek','aquanaut','P21','automatico','acciaio','2014','M','36mm','non presente','polso'),
+('9637','6000€','Cartier','Tank','rc895','automatico','acciaio-oro','2012','D','34mm','non presente','polso'),
+('938745','9000€','Rolex','seadweller','R895','automatico','acciaio','2015','M','38mm','non presente','polso'),
+('45398','25000€','Patek','calatrava','C764P','automatico','oro','2015','M','34mm','non presente','polso'),
+('82374','13000€','jaeger','reverso','2353','automatico','acciaio','2015','M','34mm','non presente','polso'),
+('1277','26000€','Patek','nautilus chrono','P87C','automatico','acciaio-oro','2015','M','36mm','non presente','polso'),
+('0634','9000€','Omega','Moonwatch','362','automatico','acciaio','1969','M','42mm','non presente','polso'),
+('21930','19000€','Audemars','royal oak','AP980','automatico','acciaio','2015','M','36mm','non presente','polso'),
+('1123','18000€','Patek','aquanaut','P32','automatico','acciaio','2015','M','36mm','non presente','polso'),
+('0591','6000€','Cartier','Tank','8457','quarzo','oro','2015','M','34mm','non presente','polso'),
+('0357','9000€','Rolex','submariner','221','manuale','acciaio-oro','1940','M','38mm','non presente','polso'),
+('0021','3000','Patek','astral','7895','manuale','oro','1850','M','38mm','presente', 'tasca');
+
+INSERT INTO `Persona` (`Nickname`,`Password`,`Nome`,`Cognome`,`Citta`,`Telefono`,`Email`,`Data_Iscrizione`) VALUES
+('arossett',MD5('Admin1993_R'),'Alberto', 'Rossetti', 'Chioggia', '3331272899', 'redalbert93@libero.it','2014-1-1'),
+('rickyb93',MD5('TheRock'),'Riccardo', 'Ballarin', 'Chioggia', '3497503812', 'riccardob93@hotmail.it','2014-1-1'),
+('redz93',MD5('rosso342_s'),'Luca', 'Varagnolo', 'Chioggia', '3335638490', 'lucav1993@hotmail.it','2014-12-20'),
+('pag_andrea',MD5('nikonzx3'),'Andrea', 'Pagan', 'Chioggia', '3334832493', 'andreapagan1@gmail.com','2015-1-2'),
+('diego89',MD5('catatren_'), 'Diego', 'Catapano', 'Chioggia', '3494432653', 'diego_c@gmail.com','2015-2-5'),
+('thomas007',MD5('porsche993_T'), 'Thomas', 'Medelin', 'Parigi', '335708374629', 'thom_med@gmail.com','2015-3-22'),
+('GeoP',MD5('soleil87'),'George', 'Parat', 'Monaco', '498703748620', 'parat67@gmail.com','2015-7-8'),
+('vlady',MD5('isaacco'),'Vittoria', 'Loubert', 'Mosca', '77643723426', 'viky_5@gmail.com','2015-5-7'),
+('filip',MD5('stackover9'),'Philippe', 'Patek', 'Ginevra', '417364890273', 'pat_phi@gmail.com','2015-7-3'),
+('rachel',MD5('powerbit'),'Rachele', 'Mircus', 'NewYork', '0873847502721', 'Mircmail@gmail.com','2015-8-6'),
+('Zenith92',MD5('moonwatch323'),'Marco', 'Rossi', 'Milano', '34923046750', 'Marcus92@gmail.com','2015-4-13'),
+('subpassion',MD5('subdweller2'),'Vincenzo', 'Galler', 'Vienna', '23948574632', 'Vincisub@gmail.com','2015-23-12'),
+('chavy',MD5('wortzwoth'),'Fred','Pirs', 'Washington', '8748239074', 'Fred_P@gmail.com','2015-2-11'),
+('Jonnas',MD5('smackdown3'),'Jonnas', 'Wregler', 'Budapest', '27381209834', 'jonny_13@gmail.com','2015-2-10');
+
+INSERT INTO `Articolo` (`Referenza_O`,`Codice_C`,`Titolo`,`Data`,`Descrizione`,`Prezzo`,`Condizione`,`Quantita`,`Nickname_scrittore`,`NomeNegozio`) VALUES
+('32387',NULL,'vendo Omega seamaster','2014-12-20','omega seamaster in condizioni buone,ultima revisione 1 anno fa','600€','6','1','arossett',NULL),
+('653242',NULL,'vendo Zenith ElPrimero NOS','2015-3-22','fantastico Elprimero,miglior meccanismo di zenith NOS','3800€','9','1','rickyb93',NULL),
+('35423',NULL,'vendo Zenith Stellina anni60','2014-12-20','orologio perfetto con tutto il corredo e garanzia del 1962','260€','10','1','redz93',NULL),
+('2523',NULL,'vendo Rolex Datejust anni70 perfetto','2015-1-2','date just anni 70 senza corredo ma in condizioni eccellenti','1400€','7','1','filip',NULL),
+('34523',NULL,'vendo Omega speedmaster professional','2015-2-5','speedmaster anni70 in condizioni più che buone','1900€','7','1','filip',NULL),
+('6532',NULL,'vendo Moeris 13','2015-3-22','moeris calibro 13 ,"condizioni buone con revisione fatta un anno fa ottima precisione','200€','6','1','thomas007',NULL),
+('21397',NULL,'vendo Longines Hydroconquest L3','2015-7-8','orologio sub satinato,ottimo meccanismo affidabile e robusto','220€','8','1','GeoP',NULL),
+('653',NULL,'vendo Lanco anni 50','2015-5-7','semplice solo tempo vintage,molto classico con quadrante texture','100€','5','1','vlady',NULL),
+('345236',NULL,'vendo Junghans anni 30 j63','2015-7-3','junghans anni30 con meccanismo j63,presente un po di ossido','100€','4','1','rachel',NULL),
+('31243',NULL,'vendo Rolex submariner 2013','2015-4-3','submariner edizione 2013 con tutto il corredo completo,presenti alcuni graffi','3200€','8','1','Jonnas',NULL),
+(NULL,'635','vendo cinturino gray Zenith','2015-4-13','cinturino raro zenith compatibile con defy','150€','8','1','pag_andrea',NULL),
+(NULL,'987','vendo cinturino perlon','2015-3-12','semplice cinturino perlon nuovo','20€','10','1','pag_andrea',NULL),
+(NULL,'098','vendo cinturino oyster Rolexsub','2015-2-11','cinturino oyster rolex mai usato NOS','200€','10','1','diego89',NULL),
+(NULL,'184','vendo cinturino pelle nera','2015-2-10','cinturino in pelle vera di ottima qualitò','60€','9','1','Zenith92',NULL),
+('23423',NULL,'vendo Rolex Millgauss 2015 NOS','2015-4-21','millgauss NOS 2015 sconto 20%','3700€','10','3',NULL,'Vertigo'),
+('54645',NULL,'vendo Rolex Submariner 2015 NOS','2015-4-22','submariner NOS 2015 sconto 20%','3300€','10','2',NULL,'Vertigo'),
+('234',NULL,'vendo Rolex Datejust 2015 NOS','2015-4-22','datejust NOS 2015 sconto 20%','4000€','10','6',NULL,'Vertigo'),
+('34563',NULL,'vendo Rolex Daydate 2015 NOS','2015-4-22','daydate NOS 2015 sconto 20% ','3900€','10','3',NULL,'Vertigo'),
+('23897',NULL,'vendo Rolex Daytona 2015 NOS','2015-4-22','daytona NOS 2015 sconto 20%','8200€','10','2',NULL,'Vertigo'),
+('23847',NULL,'vendo Zenith ElPrimero NOS','2014-3-22','elprimero NOS edizione 2014','5600€','10','3',NULL,'Brevet'),
+('2231847',NULL,'vendo Zenith Elite','2014-3-22','zenith elite NOS 2015','1200€','10','2',NULL,'Brevet'),
+('438147',NULL,'vendo Omega 300M professional','2014-3-22','300m professional NOS 2015','2400€','10','7',NULL,'Brevet'),
+('239821',NULL,'vendo Omega speedmaster professional','2014-3-22','speed 2015 NOS con garanzia 2 anni','4700€','10','3',NULL,'Brevet'),
+('549811',NULL,'vendo Omega planetocean','2014-7-22','planet ocean 600mt NOS 2015','4300€','10','2',NULL,'Brevet'),
+('23442',NULL,'vendo Rolex Datejust anni 70','2014-5-21','datejust oro acciaio in condizioni perfette e corredo completo','4800€','9','5',NULL,'LaRocca'),
+('123',NULL,'vendo Rolex PaulNewman','2014-8-2','PaulNewman perfetto e raro,corredo completo e garanzia 1 anno','35000€','9','5',NULL,'Tempus'),
+('7284',NULL,'vendo AP royal oak','2014-8-9','oak AP 2013 in buone condizioni','8000€','8','2',NULL,'Tempus'),
+('89475',NULL,'vendo patek nautilus','2015-8-5','patek phlippe nautilus NOS 2015 con scatola in mogano e certificati','19000€','10','4',NULL,'Tempus'),
+('398576',NULL,'vendo patek aquanaut','2015-8-3','aquanaut NOS edizione 2014 con tutto il corredo e certificati','12000€','10','3',NULL,'Tempus'),
+('9637',NULL,'vendo Cartier Tank','2015-11-3','tank anni in perfette condizioni revisione fatta nel 2012','4400€','8','6',NULL,'Tempus'),
+('54645',NULL,'vendo Rolex submariner','2015-9-9','submariner 2015 NOS con 15% di sconto','3600€','10','3',NULL,'LaRocca'),
+('938745',NULL,'vendo Rolex seadweller','2015-8-8','seadweller 2015 NOS con 15% di sconto','3800€','10','4',NULL,'LaRocca'),
+('23423',NULL,'vendo Rolex Millgauss','2015-8-8','millgauss 2015 NOS con 15% di sconto','4100€','10','5',NULL,'LaRocca'),
+('21397',NULL,'vendo longines Hydroconquest','2015-8-4','Hydroconquest NOS con 15% di sconto','1000€','10','3',NULL,'LaRocca'),
+('45398',NULL,'vendo patek calatrava','2015-12-20','calatrava NOS 2015 con tutto il corredo','16000€','10','4',NULL,'LaRocca'),
+('89475',NULL,'vendo patek nautilus','2015-12-12','nautilus NOS 2015','19900€','10','3',NULL,'Ferrari'),
+('82374',NULL,'vendo jaeger le coultre reverso','2015-1-1','reverso con cinturino in pelle NOS 2015','4900€','10','4',NULL,'Ferrari'),
+('1123',NULL,'vendo patek aquanaut 2015','2015-2-2','NOS 2014 con cinturin in gomma nero','3000€','10','2',NULL,'Ferrari'),
+('1277',NULL,'vendo patek nautilus chrono','2015-7-7','nautilus chrono NOS 2015 con 5 % di sconto','19000€','10','3',NULL,'Tempus'),
+('0634',NULL,'vendo Omega Moonwatch perfetto','2015-2-23','moonwatch 1969 referenza rara condizioni impeccabili','4000€','10','4',NULL,'Ferrari'),
+('35423','635','vendo Zenith stellina','2015-6-3','Zenith stellina con bracciale in acciaio','300','6','1',NULL,'Brevet'),
+('89475',NULL,'vendo patek nautilus 2015','2015-6-3','nautilus NOS 2015','11000','10','2',NULL,'LaRocca'),
+('1123',NULL,'vendo patek aquanaut 2015','2015-6-15','aquanaut 2015 NOS','10000€','10','8',NULL,'LaRocca'),
+('0591',NULL,'vendo Cartier Tank full','2015-9-23','tank full set 2015','4600€','10','5',NULL,'Tempus'),
+('0357',NULL,'vendo Rolex submariner NOS','2015-8-29','submariner vintage prima edizione','4000€','9','2',NULL,'Vertigo Watches');
+
+INSERT INTO `Cinturini` (`Codice`,`Colore`,`Materiale`) VALUES
+('635','grigio','acciaio'),
+('987','blu','nylon'),
+('312','verde','nylon'),
+('315','giallo','nylon'),
+('317','nero','nylon'),
+('098','satinato','acciaio'),
+('498','bianco','oro'),
+('983','giallo','oro'),
+('001','rosa','oro'),
+('199','nero','pelle'),
+('184','marrone','pelle');
+
+
+INSERT INTO `Negozio` (`Nome`,`Nickname`,`Password`,`Indirizzo`,`Telefono`,`Email`) VALUES
+('Vertigo','VertiWatches',MD5('Asjd43'),'Roma via aurelia 12','065543890','VertigoWatch@libero.it'),
+('Brevet','Bre67',MD5('Bre76') ,'Verona via nespoli 3','055543890','Brevet@gmail.com'),
+('Tempus','Tempus_PD',MD5('Romex222'),'Padova via centro 2','0495342790','info@tempusorologi.it'),
+('LaRocca','LaRoccasince',MD5('dunlopsss21'),'Padova corso milano 7','04955488760','customercare@roccaspa.com '),
+('Ferrari','FerrariWatch',MD5('Enzo458'),'Padova via sogra 1','0495542692','info@ferrarigioielli.it');
+
+INSERT INTO `Vende` (`NomeNegozio`,`NomeMarche`) VALUES
+('Vertigo','Rolex'),
+('Brevet','Zenith'),
+('Brevet','Omega'),
+('Tempus','Rolex'),
+('Tempus','Audemars'),
+('Tempus','Patek'),
+('LaRocca','Rolex'),
+('LaRocca','Cartier'),
+('LaRocca','Longines'),
+('LaRocca','jaeger'),
+('LaRocca','Patek'),
+('Ferrari','Rolex'),
+('Ferrari','Patek'),
+('Ferrari','Audemars'),
+('Ferrari','Cartier'),
+('Ferrari','Omega');
+
+INSERT INTO `Marche` (`Nome`) VALUES
+('Rolex'),
+('Audemars'),
+('Cartier'),
+('Omega'),
+('Longines'),
+('jaeger'),
+('Patek'),
+('Zenith');
+
+DROP FUNCTION IF EXISTS ultimiorologi;
+DROP FUNCTION IF EXISTS tempo;
+DROP VIEW IF EXISTS narticoli;
+DROP VIEW IF EXISTS articolinegozi;
+
+DELIMITER $$
+
+CREATE FUNCTION ultimiorologi() RETURNS INT
+BEGIN
+	DECLARE conta INT DEFAULT 0;
+	SELECT COUNT(*) INTO conta
+	FROM Articolo
+	WHERE DATEDIFF(NOW(),Data)<30;
+	RETURN conta;
+END $$
+
+CREATE FUNCTION tempo(Nickname VARCHAR(20)) RETURNS TIMESTAMP
+BEGIN
+	DECLARE dataultimoart TIMESTAMP;
+	SELECT MAX(Data) INTO dataultimoart
+	FROM Articolo
+	WHERE Nickname_Scrittore = Nickname;
+	RETURN dataultimoart;
+END $$
+
+DELIMITER ;
+
+CREATE VIEW narticoli AS
+SELECT DISTINCT Nome,SUM(Quantita) AS Sommaquantita
+from (Articolo JOIN Negozio ON Nome=NomeNegozio)
+GROUP BY Nome
+ORDER BY Sommaquantita desc;
+
+
+CREATE VIEW articolinegozi AS
+SELECT a.Id AS Id,a.Referenza_O AS Referenza,a.Prezzo AS Prezzo,o.Marca AS Marca,o.Modello AS Modello,c.Codice AS Codice_c,c.Materiale AS Materiale, a.NomeNegozio AS NomeNegozio  ,n.Email AS Email
+FROM ((Articolo a JOIN Negozio n ON a.NomeNegozio=n.Nome) JOIN Cinturini c ON a.Codice_C=c.Codice) JOIN Orologi o ON a.Referenza_O=o.Referenza
+WHERE o.Marca='Zenith' AND c.Materiale='acciaio';
+
+SET FOREIGN_KEY_CHECKS=1;

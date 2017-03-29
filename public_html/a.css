@@ -1,0 +1,203 @@
+*{
+	padding: 0;
+	margin: 0;
+}
+
+html,body{
+	max-width: 90%;
+	font-size: 100%;
+	margin:auto;
+	font-family: "Droid Sans", Verdana, "Helvetica Neue", Helvetica, Arial, Geneva, sans-serif;
+	width: auto;
+}
+
+p{
+	font-size: 1.1em;
+	padding-top: 1em;
+	padding-bottom: 1em;
+	padding-left: 1em;
+	font-family: "Trebuchet MS", sans-serif;
+}
+
+
+h1{
+	font-family: "Trebuchet MS", sans-serif;
+	font-size: 3em;
+}
+
+
+h2{
+	font-family: "Trebuchet MS", sans-serif;
+	font-size: 2em;
+	text-align: center;
+	padding-bottom: 0.5em;
+}
+
+h3{
+	font-family: "Trebuchet MS", sans-serif;
+	font-size: 1.2em;
+	padding-top: 1em;
+	padding-bottom: 1em;
+	padding-left: 1em;
+	text-align: left;
+}
+
+h4{
+	font-size: 1.0em;
+	padding-top: 0.5em;
+	padding-bottom: 0.1em;
+}
+
+
+#header {
+	font-family: "Trebuchet MS", sans-serif;
+	font-size: 1.5em;
+	background-color:midnightBlue;
+	color:white;
+	text-align: center;
+	padding-top: 1em;
+	padding-bottom: 0.3em;
+	opacity:0.9;
+	border-radius:10px;
+	box-shadow:1px 1px 7px #000;
+	width: auto;
+	background: -moz-linear-gradient(100% 100% 180deg, midnightblue, white);
+	 background: -webkit-gradient(linear, right top, left bottom, from(midnightBlue), to(white));
+}
+
+#nav{
+    border:1px solid #ccc;
+    border-width:1px 0;
+    list-style:none;
+    margin:0;
+    padding:0;
+    text-align:center;
+    background-color: midnightblue;
+	color: white;
+	padding-left: 1em;
+	padding-top: 0.5em;
+	padding-bottom: 0.5em;
+ 	opacity:0.8;
+	border-radius:10px;
+	box-shadow:1px 1px 7px #000;
+	width: auto;
+
+}
+#nav li{
+    display:inline;
+    color: white;
+}
+#nav a{
+    display:inline-block;
+    padding:10px;
+    color: white;
+}
+
+#corpo{
+	min-height: 500px;
+	padding-right: 1em;
+	padding-left: 3em;   /*per spostare le tabelle dal div sotto*/
+	padding-bottom: 1.5em;
+	padding-top: 1.5em;
+	border-right: 1px solid black;
+	border-left: 1px solid black;
+	background-color:white;
+	background: -moz-linear-gradient(100% 100% 180deg, midnightblue, white);
+	background: -webkit-gradient(linear, right top, left bottom, from(midnightblue), to(white));
+	width: auto;
+}
+	
+#corpo h1{
+	padding-top: 0.5em;
+}
+
+#corpo ul{
+	padding-left: 1em;
+}
+
+#footer{
+	text-align: center;
+	padding-top: 1em;
+	padding-bottom: 1em;
+	border: 1px solid black;
+	clear: both;
+	background-color: midnightblue;
+	color: white;
+	opacity:0.8;
+	border-radius:10px;
+	box-shadow:1px 1px 7px #000;
+	width: auto;
+}
+
+#form{
+	padding-left: 1em;
+    padding: 10px;
+    width: 500px;
+    border: 1px solid black;
+    font: 15px Verdana, Arial, Helvetica, sans-serif;
+    color: black;
+}
+
+#submit {
+  /*background-color: #FF8800; /* colore di sfondo    */
+  /*border: 2px solid #FCA800; /* bordo dell'elemento */
+  /*color: #fff;               /* colore del testo    */
+  font-weight: bold;         /* testo in grassetto  */
+  padding: 0;                /* padding             */
+  height: 25px;              /* altezza             */
+  width: 120px;               /* larghezza           */
+} 
+.spaceform{
+	padding-top:0.5em;
+	padding-left:0.5em;
+	padding-bottom: 1em;
+}
+
+.table {
+	width: 50%;
+	margin-top: 1em;
+	margin-bottom: 1em;
+	margin-left: 0.5em;
+	font-family: "Trebuchet MS", sans-serif;
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 1.4em;
+    font-style: normal;
+    border-collapse:separate;
+    border-radius:10px;
+	box-shadow:1px 1px 7px #000;
+	text-align: left;
+	table-layout: auto;
+}
+
+.table th{
+	font-size:18px;
+    padding:15px;
+    color: 	#000080;
+    text-shadow:1px 1px 1px;
+    border:1px solid;
+    border-bottom:3px ;
+   
+
+    -webkit-border-top-left-radius:5px;
+    -webkit-border-top-right-radius:5px;
+    -moz-border-radius:5px 5px 0px 0px;
+    border-top-left-radius:5px;
+    border-top-right-radius:5px;
+    table-layout: auto;
+}
+
+/* larghezza del div che contiene la tabella (facoltativo): il valore potrebbe essere omesso se vale 100% oppure se viene definito altrove */
+.table-responsive {width: 100%;}
+
+/* stile del bordo per la tabella (facoltativo) */
+.table-responsive table {border: #ccc solid 1px;}
+
+/* istruzioni per le celle (alcune sono obbligatorie) */
+.table-responsive table td, .table-responsive table th {min-width: 1px; width: 100%; border: #ccc solid 1px;  text-align: center; padding: 0%;}
+
+
+
+a:link {color: black;}
+a:visited {color: black;}
+
